@@ -1,30 +1,45 @@
-const { use } = require("react");
-const generateToken = require("../utils/generateToken");
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
+// Generate JWT Token
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d',
+  });
+};
 
+// @desc    Register new user
+// @route   POST /api/auth/register
+// @access  Public
+exports.register = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
 
-exports.register = async(req,res,next) => {
-    try {
-        const {name,email,password} = req.body;
+    console.log('📝 Register request:', { name, email });
 
-        const userExists = await Users.findOne({email});
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email',
+      });
+    }
 
-        if(userExists) {
-            return res.status(400).json({
-                success : false,
-                message : "user already exists with this email "
-            })
-        }
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      password,
+    });
 
-        const user = await User.create({
-            name,
-            email,
-            password
-        });
+    console.log('✅ User created:', user._id);
 
-        const token = generateToken(user._id)
-        res.status(201).json({
-            success: true,
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      success: true,
       message: 'User registered successfully',
       token,
       user: {
@@ -32,37 +47,42 @@ exports.register = async(req,res,next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar,
       },
-        });
-
-    }catch (error){
-        next(error);
-    }
+    });
+  } catch (error) {
+    console.error('❌ Register error:', error);
+    next(error);
+  }
 };
 
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
+exports.login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
 
-expports.login = async (req,res,next) => {
-    try{
+    console.log('🔐 Login request:', { email });
 
-        const {email , password} = req.body;
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password',
+      });
+    }
 
-        if(!email || ! password){
-            return res.status(400).json({
-                success : false,
-                message : "please provide email and password"
-            });
-        }
+    // Find user with password field
+    const user = await User.findOne({ email }).select('+password');
 
-        const user = await User.findOne({ email }).select('+password');
-
-        if (!user) {
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
       });
     }
 
+    // Check if password matches
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
@@ -72,14 +92,9 @@ expports.login = async (req,res,next) => {
       });
     }
 
+    console.log('✅ Login successful:', user._id);
 
-     if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been deactivated',
-      });
-    }
-
+    // Generate token
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -91,12 +106,10 @@ expports.login = async (req,res,next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar,
       },
     });
-
-    } 
-    catch(error) {
-        next(error);
-    }
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    next(error);
+  }
 };
