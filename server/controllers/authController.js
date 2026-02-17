@@ -50,7 +50,7 @@ exports.register = async (req, res, next) => {
       },
     });
   } catch (error) {
-    console.error('❌ Register error:', error);
+    console.error(' Register error:', error);
     next(error);
   }
 };
@@ -62,7 +62,7 @@ exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    console.log('🔐 Login request:', { email });
+    console.log('Login request:', { email });
 
     // Validate input
     if (!email || !password) {
@@ -92,7 +92,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    console.log('✅ Login successful:', user._id);
+    console.log(' Login successful:', user._id);
 
     // Generate token
     const token = generateToken(user._id);
